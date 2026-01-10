@@ -1,6 +1,9 @@
 # Resources folder containing blog evaluations
 resources/
 
+# Log files
+logs/
+
 # Python
 __pycache__/
 *.py[cod]

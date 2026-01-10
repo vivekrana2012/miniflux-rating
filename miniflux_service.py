@@ -6,6 +6,7 @@ Handles all interactions with the Miniflux RSS reader API.
 
 import requests
 import os
+from logger import logger
 
 class MinifluxService:
     """Service class for interacting with Miniflux API."""
@@ -37,7 +38,7 @@ class MinifluxService:
     def _verify_connection(self):
         """Verify connection to Miniflux API and authenticate."""
         try:
-            print(f"Connecting to Miniflux at: {self.base_url}")
+            logger.info(f"Connecting to Miniflux at: {self.base_url}")
             response = requests.get(
                 f"{self.base_url}/v1/me", 
                 headers=self.headers,
@@ -45,17 +46,17 @@ class MinifluxService:
             )
             response.raise_for_status()
             user_info = response.json()
-            print(f"✓ Connected to Miniflux API as: {user_info.get('username', 'unknown')}")
+            logger.info(f"✓ Connected to Miniflux API as: {user_info.get('username', 'unknown')}")
         except requests.exceptions.ConnectionError as e:
-            print(f"Connection error: {e}")
-            print(f"Make sure Miniflux is running at {self.base_url}")
+            logger.error(f"Connection error: {e}")
+            logger.error(f"Make sure Miniflux is running at {self.base_url}")
             raise
         except requests.exceptions.Timeout as e:
-            print(f"Timeout error: {e}")
-            print(f"The server at {self.base_url} took too long to respond")
+            logger.error(f"Timeout error: {e}")
+            logger.error(f"The server at {self.base_url} took too long to respond")
             raise
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to Miniflux API: {e}")
+            logger.error(f"Error connecting to Miniflux API: {e}")
             raise
     
     def get_entries(self, offset=0, limit=10, status="unread", order="published_at", 
@@ -108,8 +109,55 @@ class MinifluxService:
             response.raise_for_status()
             data = response.json()
             entries = data.get('entries', [])
-            print(f"✓ Fetched {len(entries)} entries (offset: {offset})")
+            logger.info(f"✓ Fetched {len(entries)} entries (offset: {offset})")
             return entries
         except Exception as e:
-            print(f"Error fetching entries: {e}")
+            logger.error(f"Error fetching entries: {e}")
             raise
+    
+    def update_entries(self, entries_data):
+        """
+        Update multiple entries with tags and status.
+        
+        Args:
+            entries_data (list): List of dicts with:
+                - entry_id (int): Entry ID
+                - existing_tags (list): Current tags from the entry
+                - new_tags (list): Tags to add
+                - status (str, optional): New status (read, unread, removed)
+        
+        Returns:
+            bool: True if successful
+        """
+        if not entries_data:
+            return True
+        
+        try:
+            for entry_data in entries_data:
+                entry_id = entry_data['entry_id']
+                existing_tags = entry_data.get('existing_tags', [])
+                new_tags = entry_data.get('new_tags', [])
+                status = entry_data.get('status')
+                
+                # Merge tags (avoid duplicates)
+                merged_tags = list(set(existing_tags + new_tags))
+                
+                # Build payload
+                payload = {'tags': merged_tags}
+                if status:
+                    payload['status'] = status
+                
+                # Update individual entry
+                response = requests.put(
+                    f"{self.base_url}/v1/entries/{entry_id}",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=10
+                )
+                response.raise_for_status()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating entries: {e}")
+            return False

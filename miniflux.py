@@ -1,44 +1,44 @@
 #!/usr/bin/env python3
 """
-Script to process Miniflux entries and generate ratings using Gemini API.
-Connects to Miniflux API and processes feed entries.
+Main script to process Miniflux entries and generate ratings using Gemini API.
 """
 
 import time
 from miniflux_service import MinifluxService
-from gemini import evaluate_blog
+from postgres_service import PostgresService
+from blog_evaluator import evaluate_blog
+from entry_updater import update_miniflux_entries
+from rating_parser import categorize_quality
+from logger import logger
 
 
-def process_entries(miniflux_service, batch_size=10, batch_delay=60, max_entries=None):
+def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60, max_entries=None):
     """
-    Process unread entries from Miniflux API in batches.
-    Fetches entries oldest first, processes them, waits, then fetches the next batch.
+    Process unread entries from Miniflux in batches.
     
     Args:
         miniflux_service (MinifluxService): Miniflux service instance
-        batch_size (int): Number of entries to fetch per batch (default: 10)
-        batch_delay (int): Delay in seconds between batches (default: 60)
-        max_entries (int, optional): Maximum number of entries to process (None = all)
+        db_service (PostgresService): PostgreSQL service instance
+        batch_size (int): Entries per batch (default: 10)
+        batch_delay (int): Delay between batches in seconds (default: 60)
+        max_entries (int, optional): Maximum entries to process (None = all)
     
     Returns:
-        dict: Statistics about the processing
+        dict: Processing statistics
     """
     stats = {
-        'total': 0,
-        'processed': 0,
-        'skipped': 0,
-        'errors': 0,
-        'batches': 0
+        'total': 0, 'processed': 0, 'skipped': 0, 'errors': 0, 'batches': 0,
+        'high_quality': 0, 'mid_quality': 0, 'low_quality': 0
     }
     
     overall_count = 0
     offset = 0
+    batch_entries_with_ratings = []
     
     while True:
-        # Fetch unread entries ordered by published_at ascending (oldest first)
-        print(f"\n{'='*70}")
-        print(f"Fetching batch {stats['batches'] + 1} of unread entries...")
-        print(f"{'='*70}")
+        logger.info("="*70)
+        logger.info(f"Fetching batch {stats['batches'] + 1} of unread entries...")
+        logger.info("="*70)
         
         entries = miniflux_service.get_entries(
             offset=offset,
@@ -48,108 +48,124 @@ def process_entries(miniflux_service, batch_size=10, batch_delay=60, max_entries
             direction="asc"
         )
         
-        # Stop if no more entries
         if not entries:
-            print("✓ No more unread entries to process")
+            logger.info("✓ No more unread entries")
             break
         
         stats['batches'] += 1
         stats['total'] += len(entries)
         
-        # Process each entry in the batch
+        # Process each entry
         for entry in entries:
             overall_count += 1
+            if max_entries and overall_count > max_entries:
+                update_miniflux_entries(miniflux_service, batch_entries_with_ratings)
+                return stats
+            
             entry_id = entry['id']
             title = entry.get('title', 'No title')
             url = entry['url']
+            existing_tags = entry.get('tags', [])
             
-            print(f"\n[{overall_count}] Processing entry {entry_id}")
-            print(f"Title: {title}")
-            print(f"URL: {url}")
-            print("-" * 70)
+            logger.info(f"\n[{overall_count}] Processing entry {entry_id}")
+            logger.info(f"Title: {title}")
+            logger.info(f"URL: {url}")
+            logger.info("-" * 70)
             
             try:
-                # Call Gemini API and write response to file
-                result = evaluate_blog(url)
+                result = evaluate_blog(url, entry_id=entry_id, db_service=db_service)
                 
                 if result['is_new']:
                     stats['processed'] += 1
-                    print(f"✓ New evaluation completed")
+                    logger.info("✓ New evaluation completed")
                 else:
                     stats['skipped'] += 1
-                    print(f"✓ Already evaluated, skipped")
+                    logger.info("✓ Already evaluated, skipped")
                 
-                print(f"Blog ID: {result['blog_id']}")
-                print(f"File: {result['file_path']}")
+                rating = result.get('rating')
+                if rating:
+                    quality = categorize_quality(rating)
+                    stats[f'{quality}_quality'] += 1
+                    batch_entries_with_ratings.append({
+                        'id': entry_id,
+                        'rating': rating,
+                        'existing_tags': existing_tags
+                    })
+                    logger.info(f"Rating: {rating}/10 (Quality: {quality})")
+                else:
+                    logger.warning("⚠ Could not parse rating")
+                
+                logger.info(f"Blog ID: {result['blog_id']}")
+                logger.info(f"File: {result['file_path']}")
                     
             except Exception as e:
                 stats['errors'] += 1
-                print(f"✗ Error processing entry {entry_id}: {e}")
+                logger.error(f"✗ Error: {e}", exc_info=True)
                 continue
-            
-            # Check if we've reached max_entries limit
-            if max_entries and overall_count >= max_entries:
-                print(f"\n✓ Reached maximum entry limit ({max_entries})")
-                return stats
         
-        # Wait before fetching next batch (unless we've processed all entries or hit limit)
-        print(f"\n{'='*70}")
-        print(f"Batch {stats['batches']} complete. Processed {len(entries)} entries.")
+        # Update entries after each batch
+        update_miniflux_entries(miniflux_service, batch_entries_with_ratings)
+        batch_entries_with_ratings.clear()
         
-        # Increment offset for next batch
+        logger.info(f"\n{'='*70}")
+        logger.info(f"Batch {stats['batches']} complete. Processed {len(entries)} entries.")
+        
+        # Move to next batch
         offset += batch_size
         
-        # Check if there might be more entries
         if len(entries) == batch_size:
-            print(f"Waiting {batch_delay} seconds before fetching next batch...")
-            print(f"{'='*70}")
+            logger.info(f"Waiting {batch_delay} seconds before next batch...")
+            logger.info("="*70)
             time.sleep(batch_delay)
         else:
-            print("Last batch was smaller than batch size, likely no more entries.")
-            print(f"{'='*70}")
+            logger.info("Last batch was smaller, no more entries.")
+            logger.info("="*70)
             break
     
     return stats
 
+
+
 def main():
-    """
-    Main function to process Miniflux entries.
-    """
-    print("=" * 70)
-    print("Miniflux Entry Processor")
-    print("=" * 70)
-    print()
+    """Main function to process Miniflux entries."""
+    logger.info("=" * 70)
+    logger.info("Miniflux Entry Processor")
+    logger.info("=" * 70)
     
     try:
-        # Initialize Miniflux service (reads from env vars)
         miniflux = MinifluxService()
+        postgres = PostgresService()
         
-        # Process entries
-        # Fetches 10 unread entries (oldest first), processes them, waits 60 seconds, repeats
-        # max_entries=None processes all entries, or set a number to limit
         stats = process_entries(
             miniflux_service=miniflux,
+            db_service=postgres,
             batch_size=10,
             batch_delay=60,
-            max_entries=2
+            max_entries=2  # Change to None to process all entries
         )
         
         # Print summary
-        print("\n" + "=" * 70)
-        print("PROCESSING COMPLETE")
-        print("=" * 70)
-        print(f"Total batches: {stats['batches']}")
-        print(f"Total entries: {stats['total']}")
-        print(f"Newly processed: {stats['processed']}")
-        print(f"Already evaluated (skipped): {stats['skipped']}")
-        print(f"Errors: {stats['errors']}")
-        print("=" * 70)
+        logger.info("\n" + "=" * 70)
+        logger.info("PROCESSING COMPLETE")
+        logger.info("=" * 70)
+        logger.info(f"Total batches: {stats['batches']}")
+        logger.info(f"Total entries: {stats['total']}")
+        logger.info(f"Newly processed: {stats['processed']}")
+        logger.info(f"Already evaluated: {stats['skipped']}")
+        logger.info(f"Errors: {stats['errors']}")
+        logger.info("\nQuality Distribution:")
+        logger.info(f"  High (>8): {stats['high_quality']}")
+        logger.info(f"  Mid (6-8): {stats['mid_quality']}")
+        logger.info(f"  Low (<6): {stats['low_quality']}")
+        logger.info("=" * 70)
         
     except Exception as e:
-        print(f"\nFatal error: {e}")
+        logger.error(f"\nFatal error: {e}", exc_info=True)
         return 1
     
     return 0
 
+
 if __name__ == "__main__":
     exit(main())
+

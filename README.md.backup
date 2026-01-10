@@ -48,9 +48,7 @@ export MINIFLUX_DB_PORT="5432"
 psql -d miniflux -f schema.sql
 ```
 
-## Usage
-
-### Process Miniflux Entries (Main Script)
+### PostgreSQL Database AccessMain Script)
 
 Process unread entries from Miniflux in batches:
 
@@ -80,13 +78,25 @@ stats = process_entries(
     batch_size=10,        # Entries per batch
     batch_delay=60,       # Seconds between batches
     max_entries=None      # Set to number or None for all
-)
-```
+)his will:
+- Connect to PostgreSQL (database: `miniflux`)
+- Fetch all entries from the `entries` table
+- Evaluate each blog post URL using Gemini
+- Save results to `resources/{blog_id}.txt`
+- Skip already evaluated blogs automatically
+- Respect rate limits (6 second delay between requests)
 
-### Evaluate Individual Blog Posts
-
+**Configuration:**
+Edit database credentials in `process_miniflux.py` if needed:
 ```python
-from blog_evaluator import evaluate_blog
+db_config = {
+    'database': 'miniflux',
+    'user': 'miniflux',
+    'password': '',  # Add password if needed
+    'host': 'localhost',
+    'port': 5432
+}
+```blog_evaluator import evaluate_blog
 
 result = evaluate_blog("https://example.com/blog-post")
 print(f"Blog ID: {result['blog_id']}")
@@ -118,12 +128,12 @@ blog_id = generate_blog_id("https://example.com/blog")
 # Save/load evaluations
 from file_storage import save_evaluation, load_evaluation
 file_path = save_evaluation(url, blog_id, content, evaluation)
-existing = load_evaluation(blog_id)
-```
+existing = load_evaluation(blog_id
+```python
+from gemini_prompt import call_gemini
 
-## Output Format
-
-Each evaluation is saved to `resources/{blog_id}.txt`:
+response = call_gemini("Your prompt here")
+print(response):
 
 ```
 URL: https://example.com/blog-post
@@ -154,67 +164,16 @@ depth of analysis, practical value, and overall effectiveness]
 CREATE TABLE ratings (
     id VARCHAR(12) PRIMARY KEY,      -- Blog hash ID
     entry_id BIGINT UNIQUE NOT NULL, -- Miniflux entry ID
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
 
-## Quality-Based Tagging
+All entries also receive a tag: `LLM:rating=X` (where X is the numeric rating)
 
-Entries are automatically tagged based on their rating:
-
-| Rating | Quality Tag | Behavior |
-|--------|-------------|----------|
-| 9-10 | `LLM:quality=high` | Kept as unread |
-| 6-8 | `LLM:quality=mid` | Kept as unread |
-| 1-5 | `LLM:quality=low` | Marked as read |
-
-All entries also receive: `LLM:rating=X` (where X is the numeric rating)
-
-## Error Handling
-
-**Gemini API 503 Errors**: Automatic exponential backoff retry
-- Retry 1: Wait 60 seconds
-- Retry 2: Wait 120 seconds
-- Retry 3: Wait 240 seconds
-- Retry 4: Wait 480 seconds
-- Retry 5: Wait 960 seconds
-
-**Rate Limiting**: Default batch processing waits 60 seconds between batches of 10 entries
-
-## Logging
-
-All operations are automatically logged to `logs/miniflux_rating.log` with:
-- **Automatic rotation**: When log file reaches 1 MB, it rotates to `miniflux_rating.log.1`
-- **10 backup files**: Keeps up to 10 rotated log files
-- **Console & file output**: Logs are written to both console and file
-- **Timestamp & level**: Each log entry includes timestamp and severity level
-
-**Log levels:**
-- `INFO`: Normal operations (fetching, processing, saving)
-- `WARNING`: Non-critical issues (could not parse rating, API retries)
-- `ERROR`: Failures (connection errors, API failures, exceptions)
-
-**Example log entries:**
-```
-2026-01-10 14:30:15 - miniflux_rating - INFO - Connecting to Miniflux at: http://127.0.0.1:8081
-2026-01-10 14:30:16 - miniflux_rating - INFO - ✓ Connected to Miniflux API as: admin
-2026-01-10 14:30:17 - miniflux_rating - INFO - [1] Processing entry 12345
-2026-01-10 14:30:25 - miniflux_rating - INFO - ✓ New evaluation completed
-2026-01-10 14:30:25 - miniflux_rating - INFO - Rating: 8/10 (Quality: mid)
-```
-
-## Project Structure
-
-```
-project-miniflux-rating/
-├── miniflux.py              # Main orchestration script (177 lines)
-├── miniflux_service.py      # Miniflux API client (165 lines)
-├── logger.py                # Logging configuration with rotation (53 lines)
-├── gemini_client.py         # Gemini API with retry (87 lines)
-├── blog_evaluator.py        # Blog evaluation logic (72 lines)
-├── entry_updater.py         # Miniflux entry updates (77 lines)
+miniflux.py              # Main orchestration script (171 lines)
+├── miniflux_service.py      # Miniflux API client (162 lines)
+├── blog_evaluator.py        # Blog evaluation logic (69 lines)
+├── gemini_client.py         # Gemini API with retry (84 lines)
+├── entry_updater.py         # Miniflux entry updates (74 lines)
 ├── file_storage.py          # File save/load operations (72 lines)
-├── postgres_service.py      # Database operations (73 lines)
+├── postgres_service.py      # Database operations (70 lines)
 ├── rating_parser.py         # Rating extraction & categorization (45 lines)
 ├── content_fetcher.py       # Blog content fetching (28 lines)
 ├── blog_id.py               # Unique ID generation (19 lines)
@@ -222,10 +181,6 @@ project-miniflux-rating/
 ├── schema.sql               # Database schema
 ├── requirements.txt         # Python dependencies
 ├── README.md                # This file
-├── logs/                    # Log files (auto-created)
-│   ├── miniflux_rating.log  # Current log file
-│   ├── miniflux_rating.log.1
-│   └── ...                  # Up to 10 backup files
 └── resources/               # Evaluation output files
     └── {blog_id}.txt        # Individual blog evaluations
 ```
@@ -247,4 +202,49 @@ project-miniflux-rating/
 - `logger.py` - Centralized logging configuration with rotation
 
 **Main Script:**
-- `miniflux.py` - Batch process unread entries with rate limiting
+- `miniflux.py` - Batch process unread entries with rate limitingetry 3: Wait 240 seconds
+- Retry 4: Wait 480 seconds
+- Retry 5: Wait 960 seconds
+
+**Rate Limiting**: Default batch processing waits 60 seconds between batches of 10 entrie
+## Logging
+
+All operations are automatically logged to `logs/miniflux_rating.log` with:
+- **Automatic rotation**: When log file reaches 1 MB, it rotates to `miniflux_rating.log.1`
+- **10 backup files**: Keeps up to 10 rotated log files
+- **Console & file output**: Logs are written to both console and file
+- **Timestamp & level**: Each log entry includes timestamp and severity level
+
+**Log levels:**
+- `INFO`: Normal operations (fetching, processing, saving)
+- `WARNING`: Non-critical issues (could not parse rating, API retries)
+- `ERROR`: Failures (connection errors, API failures, exceptions)
+
+**Example log entries:**
+```
+2026-01-10 14:30:15 - miniflux_rating - INFO - Connecting to Miniflux at: http://127.0.0.1:8081
+2026-01-10 14:30:16 - miniflux_rating - INFO - ✓ Connected to Miniflux API as: admin
+2026-01-10 14:30:17 - miniflux_rating - INFO - [1] Processing entry 12345
+2026-01-10 14:30:25 - miniflux_rating - INFO - ✓ New evaluation completed
+2026-01-10 14:30:25 - miniflux_rating - INFO - Rating: 8/10 (Quality: mid)
+```[Detailed explanation of the rating]
+```
+
+## Rate Limiting
+
+The Gemini API allows 10 requests per minute. The batch processor automatically:
+- Enforces a 6-second delay between new evaluations
+- Skips already-evaluated blogs (no API call needed)
+- Displays progress and statistics
+
+## Project Structure
+
+```
+project-miniflux-rating/
+├── gemini_prompt.py      # Core evaluation functions
+├── process_miniflux.py   # Miniflux batch processor
+├── requirements.txt      # Python dependencies
+├── README.md            # This file
+└── resources/           # Evaluation output files
+    └── {blog_id}.txt    # Individual blog evaluations
+```
