@@ -17,26 +17,30 @@ class PostgresService:
         
         Args:
             dbname (str): Database name (default: from env or 'miniflux')
-            user (str): Database user (default: from env or 'miniflux')
-            password (str): Database password (default: from env or '')
-            host (str): Database host (default: from env or 'localhost')
+            user (str): Database user (default: from env or 'postgres')
+            password (str): Database password (default: from env or None for peer auth)
+            host (str): Database host (default: from env or None for Unix socket)
             port (str): Database port (default: from env or '5432')
         """
         self.dbname = dbname or os.getenv('MINIFLUX_DB_NAME', 'miniflux')
-        self.user = user or os.getenv('MINIFLUX_DB_USER', 'miniflux')
-        self.password = password or os.getenv('MINIFLUX_DB_PASSWORD', '')
-        self.host = host or os.getenv('MINIFLUX_DB_HOST', 'localhost')
+        self.user = user or os.getenv('MINIFLUX_DB_USER', 'postgres')
+        self.password = password or os.getenv('MINIFLUX_DB_PASSWORD')
+        self.host = host or os.getenv('MINIFLUX_DB_HOST')
         self.port = port or os.getenv('MINIFLUX_DB_PORT', '5432')
     
     def _get_connection(self):
         """Create and return a database connection."""
-        return psycopg2.connect(
-            dbname=self.dbname,
-            user=self.user,
-            password=self.password,
-            host=self.host,
-            port=self.port
-        )
+        # Build connection params, omitting None values for Unix socket auth
+        conn_params = {'dbname': self.dbname, 'user': self.user}
+        
+        if self.password:
+            conn_params['password'] = self.password
+        if self.host:
+            conn_params['host'] = self.host
+        if self.port:
+            conn_params['port'] = self.port
+        
+        return psycopg2.connect(**conn_params)
     
     def save_rating(self, blog_id, entry_id):
         """
