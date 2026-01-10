@@ -115,12 +115,12 @@ class MinifluxService:
             logger.error(f"Error fetching entries: {e}")
             raise
     
-    def update_entries(self, entries_data):
+    def update_entry(self, entry_data):
         """
-        Update multiple entries with tags and status.
+        Update an entry with tags and status.
         
         Args:
-            entries_data (list): List of dicts with:
+            entry_data (dict): Dict with:
                 - entry_id (int): Entry ID
                 - existing_tags (list): Current tags from the entry
                 - new_tags (list): Tags to add
@@ -129,35 +129,34 @@ class MinifluxService:
         Returns:
             bool: True if successful
         """
-        if not entries_data:
-            return True
+        if not entry_data:
+            return False
         
         try:
-            for entry_data in entries_data:
-                entry_id = entry_data['entry_id']
-                existing_tags = entry_data.get('existing_tags', [])
-                new_tags = entry_data.get('new_tags', [])
-                status = entry_data.get('status')
-                
-                # Merge tags (avoid duplicates)
-                merged_tags = list(set(existing_tags + new_tags))
-                
-                # Build payload
-                payload = {'tags': merged_tags}
-                if status:
-                    payload['status'] = status
-                
-                # Update individual entry
-                response = requests.put(
-                    f"{self.base_url}/v1/entries/{entry_id}",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=10
-                )
-                response.raise_for_status()
+            entry_id = entry_data['entry_id']
+            existing_tags = entry_data.get('existing_tags', []) or []
+            new_tags = entry_data.get('new_tags', []) or []
+            status = entry_data.get('status')
+            
+            # Merge tags (avoid duplicates)
+            merged_tags = list(set(existing_tags + new_tags))
+            
+            # Build payload
+            payload = {'tags': merged_tags}
+            if status:
+                payload['status'] = status
+            
+            # Update individual entry
+            response = requests.put(
+                f"{self.base_url}/v1/entries/{entry_id}",
+                headers=self.headers,
+                json=payload,
+                timeout=10
+            )
+            response.raise_for_status()
             
             return True
             
         except Exception as e:
-            logger.error(f"Error updating entries: {e}")
+            logger.error(f"Error updating entry {entry_data.get('entry_id', 'unknown')}: {e}")
             return False

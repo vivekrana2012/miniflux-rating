@@ -7,69 +7,44 @@ from rating_parser import categorize_quality
 from logger import logger
 
 
-def prepare_entry_updates(entries_with_ratings):
+def update_miniflux_entries(miniflux_service, entry_data):
     """
-    Prepare entry updates based on quality ratings.
-    
-    Args:
-        entries_with_ratings (list): List of dicts with 'id', 'rating', 'existing_tags'
-    
-    Returns:
-        list: Prepared entries data for update
-    """
-    entries_to_update = []
-    
-    for entry in entries_with_ratings:
-        rating = entry['rating']
-        quality = categorize_quality(rating)
-        
-        update_data = {
-            'entry_id': entry['id'],
-            'existing_tags': entry.get('existing_tags', []),
-            'new_tags': [f"LLM:rating={rating}", f"LLM:quality={quality}"]
-        }
-        
-        # Mark low quality entries as read
-        if quality == 'low':
-            update_data['status'] = 'read'
-        
-        entries_to_update.append(update_data)
-    
-    return entries_to_update
-
-
-def update_miniflux_entries(miniflux_service, entries_with_ratings):
-    """
-    Update Miniflux entries with quality tags and status.
+    Update a Miniflux entry with quality tags and status.
     
     Args:
         miniflux_service (MinifluxService): Miniflux service instance
-        entries_with_ratings (list): List of dicts with 'id', 'rating', 'existing_tags'
+        entry_data (dict): Dict with 'id', 'rating', 'existing_tags'
     
     Returns:
-        dict: Statistics about updates
+        bool: True if successful
     """
-    if not entries_with_ratings:
-        return {'total': 0, 'high': 0, 'mid': 0, 'low': 0}
+    if not entry_data:
+        return False
     
-    logger.info(f"\n{'='*70}")
-    logger.info(f"Updating {len(entries_with_ratings)} Miniflux entries...")
-    logger.info(f"{'='*70}")
+    entry_id = entry_data['id']
+    rating = entry_data['rating']
+    quality = categorize_quality(rating)
     
-    # Count by quality
-    stats = {'total': 0, 'high': 0, 'mid': 0, 'low': 0}
-    for entry in entries_with_ratings:
-        quality = categorize_quality(entry['rating'])
-        stats[quality] += 1
-        stats['total'] += 1
+    # Prepare update data
+    existing_tags = entry_data.get('existing_tags', []) or []
+    new_tags = [f"LLM:rating={rating}", f"LLM:quality={quality}"]
     
-    # Prepare and send updates
-    entries_to_update = prepare_entry_updates(entries_with_ratings)
-    miniflux_service.update_entries(entries_to_update)
+    update_data = {
+        'entry_id': entry_id,
+        'existing_tags': existing_tags,
+        'new_tags': new_tags
+    }
     
-    logger.info(f"✓ Updated {stats['total']} entries")
-    logger.info(f"  High quality: {stats['high']}")
-    logger.info(f"  Mid quality: {stats['mid']}")
-    logger.info(f"  Low quality: {stats['low']} (marked as read)")
+    # Mark low and mid quality entries as read
+    if quality in ['low', 'mid']:
+        update_data['status'] = 'read'
     
-    return stats
+    # Update this entry
+    success = miniflux_service.update_entry(update_data)
+    
+    if success:
+        logger.info(f"✓ Updated entry {entry_id} with {quality} quality tags")
+    else:
+        logger.warning(f"⚠ Failed to update entry {entry_id}")
+    
+    return success

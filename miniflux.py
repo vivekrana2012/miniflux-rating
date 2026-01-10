@@ -33,7 +33,6 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
     
     overall_count = 0
     offset = 0
-    batch_entries_with_ratings = []
     
     while True:
         logger.info("="*70)
@@ -59,7 +58,6 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
         for entry in entries:
             overall_count += 1
             if max_entries and overall_count > max_entries:
-                update_miniflux_entries(miniflux_service, batch_entries_with_ratings)
                 return stats
             
             entry_id = entry['id']
@@ -86,12 +84,14 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
                 if rating:
                     quality = categorize_quality(rating)
                     stats[f'{quality}_quality'] += 1
-                    batch_entries_with_ratings.append({
+                    logger.info(f"Rating: {rating}/10 (Quality: {quality})")
+                    
+                    # Update this entry immediately
+                    update_miniflux_entries(miniflux_service, {
                         'id': entry_id,
                         'rating': rating,
                         'existing_tags': existing_tags
                     })
-                    logger.info(f"Rating: {rating}/10 (Quality: {quality})")
                 else:
                     logger.warning("⚠ Could not parse rating")
                 
@@ -102,10 +102,6 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
                 stats['errors'] += 1
                 logger.error(f"✗ Error: {e}", exc_info=True)
                 continue
-        
-        # Update entries after each batch
-        update_miniflux_entries(miniflux_service, batch_entries_with_ratings)
-        batch_entries_with_ratings.clear()
         
         logger.info(f"\n{'='*70}")
         logger.info(f"Batch {stats['batches']} complete. Processed {len(entries)} entries.")
