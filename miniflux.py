@@ -137,7 +137,7 @@ def main():
             db_service=postgres,
             batch_size=10,
             batch_delay=60,
-            max_entries=2  # Change to None to process all entries
+            max_entries=None  # Change to None to process all entries
         )
         
         # Print summary
