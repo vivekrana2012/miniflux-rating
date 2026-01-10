@@ -27,6 +27,21 @@ To get an API key, visit: https://makersuite.google.com/app/apikey
 
 3. (Optional) For Miniflux integration, ensure PostgreSQL is running locally with the `miniflux` database.
 
+### PostgreSQL Database Access
+
+To access the Miniflux PostgreSQL database:
+
+```bash
+# Switch to root user
+su
+
+# Switch to postgres system user
+su - postgres
+
+# Connect to miniflux database
+psql -d miniflux
+```
+
 ## Usage
 
 ### Process Miniflux Entries (Batch Mode)
