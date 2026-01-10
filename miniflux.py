@@ -70,8 +70,7 @@ def process_entries(miniflux_service, batch_size=10, batch_delay=60, max_entries
             
             try:
                 # Call Gemini API and write response to file
-                # result = evaluate_blog(url)
-                result = "Dummy Response"
+                result = evaluate_blog(url)
                 
                 if result['is_new']:
                     stats['processed'] += 1
@@ -132,7 +131,7 @@ def main():
             miniflux_service=miniflux,
             batch_size=10,
             batch_delay=60,
-            max_entries=None
+            max_entries=2
         )
         
         # Print summary
