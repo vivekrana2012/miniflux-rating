@@ -1,12 +1,11 @@
 # Blog Evaluator with Gemini AI
 
-A modular Python application that fetches blog posts from the web and evaluates them using the Gemini API (`gemini-2.5-flash-lite` model). Includes integration with Miniflux RSS reader for automated batch processing with quality-based tagging.
+A modular Python application that fetches blog posts from the web and evaluates them using the Gemini API (`gemini-2.5-flash-lite` model). Includes integration with Miniflux RSS reader for automated batch processing with quality-based filtering.
 
 ## Features
 
 - 🤖 AI-powered blog evaluation with Gemini API
 - 📊 Automatic quality categorization (high/mid/low based on ratings)
-- 🏷️ Smart tagging system for Miniflux entries
 - 🔄 Exponential backoff retry logic for API 503 errors
 - 💾 PostgreSQL database integration for rating persistence
 - 📦 Modular architecture with focused, single-purpose modules
@@ -63,12 +62,7 @@ This will:
 - Evaluate each blog post URL using Gemini API
 - Save evaluations to `resources/{blog_id}.txt`
 - Store ratings in PostgreSQL database
-- Tag entries in Miniflux:
-  - `LLM:rating=X` (where X is 1-10)
-  - `LLM:quality=high` (rating > 8)
-  - `LLM:quality=mid` (rating 6-8)
-  - `LLM:quality=low` (rating < 6)
-- Automatically mark low-quality entries as "read"
+- Automatically mark low and mid quality entries as "read"
 - Wait 60 seconds between batches
 - Skip already evaluated blogs
 
@@ -158,17 +152,15 @@ CREATE TABLE ratings (
 );
 ```
 
-## Quality-Based Tagging
+## Quality-Based Filtering
 
-Entries are automatically tagged based on their rating:
+Entries are automatically marked as read based on their rating:
 
-| Rating | Quality Tag | Behavior |
-|--------|-------------|----------|
-| 9-10 | `LLM:quality=high` | Kept as unread |
-| 6-8 | `LLM:quality=mid` | Kept as unread |
-| 1-5 | `LLM:quality=low` | Marked as read |
-
-All entries also receive: `LLM:rating=X` (where X is the numeric rating)
+| Rating | Quality Level | Behavior |
+|--------|---------------|----------|
+| 8-10 | High | Kept as unread |
+| 6-7 | Mid | Marked as read |
+| 1-5 | Low | Marked as read |
 
 ## Error Handling
 
@@ -218,7 +210,6 @@ project-miniflux-rating/
 ├── rating_parser.py         # Rating extraction & categorization (45 lines)
 ├── content_fetcher.py       # Blog content fetching (28 lines)
 ├── blog_id.py               # Unique ID generation (19 lines)
-├── gemini.py                # Backward compatibility wrapper (20 lines)
 ├── schema.sql               # Database schema
 ├── requirements.txt         # Python dependencies
 ├── README.md                # This file
@@ -243,7 +234,7 @@ project-miniflux-rating/
 **Service Layer:**
 - `postgres_service.py` - Database CRUD operations for ratings
 - `miniflux_service.py` - Miniflux REST API client
-- `entry_updater.py` - Update entries with quality tags
+- `entry_updater.py` - Mark entries as read based on quality
 - `logger.py` - Centralized logging configuration with rotation
 
 **Main Script:**

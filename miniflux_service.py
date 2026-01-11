@@ -114,49 +114,37 @@ class MinifluxService:
         except Exception as e:
             logger.error(f"Error fetching entries: {e}")
             raise
-    
-    def update_entry(self, entry_data):
+ 
+    def batch_update_entries(self, entry_ids, status='read'):
         """
-        Update an entry with tags and status.
+        Batch update multiple entries' status.
         
         Args:
-            entry_data (dict): Dict with:
-                - entry_id (int): Entry ID
-                - existing_tags (list): Current tags from the entry
-                - new_tags (list): Tags to add
-                - status (str, optional): New status (read, unread, removed)
+            entry_ids (list): List of entry IDs to update
+            status (str): Status to set (read, unread, removed)
         
         Returns:
             bool: True if successful
         """
-        if not entry_data:
+        if not entry_ids:
             return False
         
         try:
-            entry_id = entry_data['entry_id']
-            existing_tags = entry_data.get('existing_tags', []) or []
-            new_tags = entry_data.get('new_tags', []) or []
-            status = entry_data.get('status')
+            payload = {
+                'entry_ids': entry_ids,
+                'status': status
+            }
             
-            # Merge tags (avoid duplicates)
-            merged_tags = list(set(existing_tags + new_tags))
-            
-            # Build payload
-            payload = {'tags': merged_tags}
-            if status:
-                payload['status'] = status
-            
-            # Update individual entry
             response = requests.put(
-                f"{self.base_url}/v1/entries/{entry_id}",
+                f"{self.base_url}/v1/entries",
                 headers=self.headers,
                 json=payload,
                 timeout=10
             )
             response.raise_for_status()
-            
+            logger.info(f"✓ Batch updated {len(entry_ids)} entries to status: {status}")
             return True
             
         except Exception as e:
-            logger.error(f"Error updating entry {entry_data.get('entry_id', 'unknown')}: {e}")
+            logger.error(f"Error batch updating entries: {e}")
             return False

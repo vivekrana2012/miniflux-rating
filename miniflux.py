@@ -7,7 +7,7 @@ import time
 from miniflux_service import MinifluxService
 from postgres_service import PostgresService
 from blog_evaluator import evaluate_blog
-from entry_updater import update_miniflux_entries
+from entry_updater import prepare_entry_update, batch_update_entries
 from rating_parser import categorize_quality
 from logger import logger
 
@@ -54,6 +54,7 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
         stats['batches'] += 1
         stats['total'] += len(entries)
         new_evaluations_in_batch = 0  # Track API calls
+        batch_updates = []  # Collect updates for batch processing
         
         # Process each entry
         for entry in entries:
@@ -64,7 +65,6 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
             entry_id = entry['id']
             title = entry.get('title', 'No title')
             url = entry['url']
-            existing_tags = entry.get('tags', [])
             
             logger.info(f"\n[{overall_count}] Processing entry {entry_id}")
             logger.info(f"Title: {title}")
@@ -88,12 +88,13 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
                     stats[f'{quality}_quality'] += 1
                     logger.info(f"Rating: {rating}/10 (Quality: {quality})")
                     
-                    # Update this entry immediately
-                    update_miniflux_entries(miniflux_service, {
+                    # Collect update for batch processing
+                    update_data = prepare_entry_update({
                         'id': entry_id,
-                        'rating': rating,
-                        'existing_tags': existing_tags
+                        'rating': rating
                     })
+                    if update_data:
+                        batch_updates.append(update_data)
                 else:
                     logger.warning("⚠ Could not parse rating")
                 
@@ -104,6 +105,13 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
                 stats['errors'] += 1
                 logger.error(f"✗ Error: {e}", exc_info=True)
                 continue
+        
+        # Batch update all entries at once
+        if batch_updates:
+            logger.info(f"\n{'='*70}")
+            logger.info(f"Updating {len(batch_updates)} entries in batch...")
+            update_stats = batch_update_entries(miniflux_service, batch_updates)
+            logger.info(f"✓ Marked as read: {update_stats['marked_read']}")
         
         logger.info(f"\n{'='*70}")
         logger.info(f"Batch {stats['batches']} complete. Processed {len(entries)} entries.")

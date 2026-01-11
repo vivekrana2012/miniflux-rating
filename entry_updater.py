@@ -7,44 +7,57 @@ from rating_parser import categorize_quality
 from logger import logger
 
 
-def update_miniflux_entries(miniflux_service, entry_data):
+def prepare_entry_update(entry_data):
     """
-    Update a Miniflux entry with quality tags and status.
+    Prepare update data for a Miniflux entry status.
     
     Args:
-        miniflux_service (MinifluxService): Miniflux service instance
-        entry_data (dict): Dict with 'id', 'rating', 'existing_tags'
+        entry_data (dict): Dict with 'id', 'rating'
     
     Returns:
-        bool: True if successful
+        dict: Update data with 'entry_id', 'should_mark_read', 'quality'
     """
     if not entry_data:
-        return False
+        return None
     
     entry_id = entry_data['id']
     rating = entry_data['rating']
     quality = categorize_quality(rating)
     
-    # Prepare update data
-    existing_tags = entry_data.get('existing_tags', []) or []
-    new_tags = [f"LLM:rating={rating}", f"LLM:quality={quality}"]
-    
-    update_data = {
-        'entry_id': entry_id,
-        'existing_tags': existing_tags,
-        'new_tags': new_tags
-    }
-    
     # Mark low and mid quality entries as read
-    if quality in ['low', 'mid']:
-        update_data['status'] = 'read'
+    should_mark_read = quality in ['low', 'mid']
     
-    # Update this entry
-    success = miniflux_service.update_entry(update_data)
+    return {
+        'entry_id': entry_id,
+        'should_mark_read': should_mark_read,
+        'quality': quality
+    }
+
+
+def batch_update_entries(miniflux_service, updates_list):
+    """
+    Batch update Miniflux entries status.
     
-    if success:
-        logger.info(f"✓ Updated entry {entry_id} with {quality} quality tags")
-    else:
-        logger.warning(f"⚠ Failed to update entry {entry_id}")
+    Args:
+        miniflux_service (MinifluxService): Miniflux service instance
+        updates_list (list): List of update data dicts from prepare_entry_update
     
-    return success
+    Returns:
+        dict: Stats about updates
+    """
+    if not updates_list:
+        return {'marked_read': 0}
+    
+    stats = {'marked_read': 0}
+    
+    # Batch mark low/mid quality entries as read
+    entries_to_mark_read = [u['entry_id'] for u in updates_list if u['should_mark_read']]
+    
+    if entries_to_mark_read:
+        logger.info(f"Batch marking {len(entries_to_mark_read)} low/mid quality entries as read...")
+        if miniflux_service.batch_update_entries(entries_to_mark_read, status='read'):
+            stats['marked_read'] = len(entries_to_mark_read)
+        else:
+            logger.warning(f"⚠ Failed to batch mark entries as read")
+    
+    return stats

@@ -36,7 +36,7 @@ def categorize_quality(rating):
         rating (int): Numeric rating from 1-10
     
     Returns:
-        str: 'high' (>8), 'mid' (6-8), or 'low' (<6)
+        str: 'high' (8-10), 'mid' (6-7), or 'low' (1-5)
     """
     if rating >= 8:
         return 'high'
