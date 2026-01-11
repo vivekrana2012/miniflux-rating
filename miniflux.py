@@ -135,7 +135,7 @@ def main():
         stats = process_entries(
             miniflux_service=miniflux,
             db_service=postgres,
-            batch_size=10,
+            batch_size=1,
             batch_delay=60,
             max_entries=None  # Change to None to process all entries
         )
