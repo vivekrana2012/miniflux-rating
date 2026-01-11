@@ -53,6 +53,7 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
         
         stats['batches'] += 1
         stats['total'] += len(entries)
+        new_evaluations_in_batch = 0  # Track API calls
         
         # Process each entry
         for entry in entries:
@@ -75,6 +76,7 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
                 
                 if result['is_new']:
                     stats['processed'] += 1
+                    new_evaluations_in_batch += 1
                     logger.info("✓ New evaluation completed")
                 else:
                     stats['skipped'] += 1
@@ -105,22 +107,25 @@ def process_entries(miniflux_service, db_service, batch_size=10, batch_delay=60,
         
         logger.info(f"\n{'='*70}")
         logger.info(f"Batch {stats['batches']} complete. Processed {len(entries)} entries.")
+        logger.info(f"New evaluations (API calls): {new_evaluations_in_batch}")
         
         # Move to next batch
         offset += batch_size
         
         if len(entries) == batch_size:
-            logger.info(f"Waiting {batch_delay} seconds before next batch...")
-            logger.info("="*70)
-            time.sleep(batch_delay)
+            if new_evaluations_in_batch > 0:
+                logger.info(f"Waiting {batch_delay} seconds before next batch (API calls were made)...")
+                logger.info("="*70)
+                time.sleep(batch_delay)
+            else:
+                logger.info("No new evaluations, proceeding to next batch immediately.")
+                logger.info("="*70)
         else:
             logger.info("Last batch was smaller, no more entries.")
             logger.info("="*70)
             break
     
     return stats
-
-
 
 def main():
     """Main function to process Miniflux entries."""
