@@ -36,7 +36,7 @@ def call_gemini(prompt, api_key=None, max_retries=5):
         try:
             # Generate response
             response = client.models.generate_content(
-                model='gemini-2.5-flash-lite',
+                model='gemma-3-4b-it',
                 contents=prompt
             )
             return response.text

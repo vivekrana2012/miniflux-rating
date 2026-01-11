@@ -5,8 +5,12 @@ File storage - handles saving evaluation results to files.
 
 import os
 
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_OUTPUT_DIR = os.path.join(SCRIPT_DIR, "resources")
 
-def save_evaluation(url, blog_id, content, evaluation, output_dir="resources"):
+
+def save_evaluation(url, blog_id, content, evaluation, output_dir=None):
     """
     Save blog evaluation to a text file.
     
@@ -15,11 +19,14 @@ def save_evaluation(url, blog_id, content, evaluation, output_dir="resources"):
         blog_id (str): Unique blog identifier
         content (str): Blog content
         evaluation (str): Gemini evaluation
-        output_dir (str): Directory to save files (default: "resources")
+        output_dir (str): Directory to save files (default: script_dir/resources)
     
     Returns:
         str: Path to the saved file
     """
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+    
     # Create resources directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
@@ -43,17 +50,20 @@ def save_evaluation(url, blog_id, content, evaluation, output_dir="resources"):
     return output_file
 
 
-def load_evaluation(blog_id, output_dir="resources"):
+def load_evaluation(blog_id, output_dir=None):
     """
     Load existing evaluation from file.
     
     Args:
         blog_id (str): Unique blog identifier
-        output_dir (str): Directory containing files (default: "resources")
+        output_dir (str): Directory containing files (default: script_dir/resources)
     
     Returns:
         dict or None: {'content': str, 'evaluation': str} or None if not found
     """
+    if output_dir is None:
+        output_dir = DEFAULT_OUTPUT_DIR
+    
     output_file = os.path.join(output_dir, f"{blog_id}.txt")
     
     if not os.path.exists(output_file):
