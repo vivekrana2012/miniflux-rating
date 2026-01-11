@@ -11,7 +11,7 @@ from file_storage import save_evaluation, load_evaluation
 from logger import logger
 
 
-def evaluate_blog(url, entry_id=None, db_service=None, output_dir="resources"):
+def evaluate_blog(url, entry_id=None, db_service=None, output_dir=None):
     """
     Fetch a blog post and evaluate it using Gemini.
     
@@ -19,7 +19,7 @@ def evaluate_blog(url, entry_id=None, db_service=None, output_dir="resources"):
         url (str): The URL of the blog post to evaluate
         entry_id (int, optional): Miniflux entry ID to save in database
         db_service (PostgresService, optional): Database service instance
-        output_dir (str): Directory to save output files (default: "resources")
+        output_dir (str): Directory to save output files (default: script_dir/resources)
     
     Returns:
         dict: Contains 'blog_id', 'file_path', 'rating', and 'is_new'

@@ -7,20 +7,27 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_LOG_DIR = os.path.join(SCRIPT_DIR, 'logs')
 
-def setup_logger(name='miniflux_rating', log_dir='logs', max_bytes=1024*1024, backup_count=10):
+
+def setup_logger(name='miniflux_rating', log_dir=None, max_bytes=1024*1024, backup_count=10):
     """
     Configure logger with rotating file handler.
     
     Args:
         name (str): Logger name
-        log_dir (str): Directory for log files
+        log_dir (str): Directory for log files (default: script_dir/logs)
         max_bytes (int): Max file size before rotation (default: 1MB)
         backup_count (int): Number of backup files to keep
     
     Returns:
         logging.Logger: Configured logger instance
     """
+    if log_dir is None:
+        log_dir = DEFAULT_LOG_DIR
+    
     # Create logger
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
