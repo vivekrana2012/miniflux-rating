@@ -16,8 +16,8 @@ def parse_rating(evaluation_text):
     Returns:
         int or None: The rating as an integer (1-10), or None if not found
     """
-    # Look for "RATING:\n8/10" or "RATING:\n8" or "## RATING:\n8/10" patterns
-    match = re.search(r'#{0,3}\s*RATING:\s*[\n\r]*\s*(\d+)(?:/10)?', evaluation_text, re.IGNORECASE)
+    # Look for various rating formats: "RATING:", "**RATING:**", "## RATING:", etc.
+    match = re.search(r'#{0,3}\s*\*{0,2}\s*RATING:\s*\*{0,2}\s*[\n\r]*\s*(\d+)(?:/10)?', evaluation_text, re.IGNORECASE)
     if match:
         rating = int(match.group(1))
         # Ensure rating is in valid range
