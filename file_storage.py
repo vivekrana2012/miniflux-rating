@@ -73,10 +73,11 @@ def load_evaluation(blog_id, output_dir=None):
         content = f.read()
     
     # Parse existing content
+    # File structure: header | "BLOG CONTENT:" | content | "EVALUATION:" | evaluation
     parts = content.split('\n' + '='*70 + '\n')
     
     return {
-        'content': parts[1] if len(parts) > 1 else '',
-        'evaluation': parts[2] if len(parts) > 2 else '',
+        'content': parts[2] if len(parts) > 2 else '',
+        'evaluation': parts[4] if len(parts) > 4 else '',
         'file_path': output_file
     }
