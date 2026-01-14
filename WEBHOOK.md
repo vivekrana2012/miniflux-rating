@@ -116,9 +116,8 @@ After=network.target
 Type=simple
 User=your-user
 WorkingDirectory=/path/to/project-miniflux-rating
-EnvironmentFile=/path/to/.env
-Environment="MINIFLUX_WEBHOOK_SECRET=your-webhook-secret"
-ExecStart=/usr/bin/python3 /path/to/project-miniflux-rating/webhook_server.py
+EnvironmentFile=-/etc/environment
+ExecStart=/path/to/venv/bin/python3 /path/to/project-miniflux-rating/webhook_server.py
 Restart=always
 
 [Install]
