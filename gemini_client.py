@@ -9,7 +9,7 @@ from google import genai
 from logger import logger
 
 
-def call_gemini(prompt, api_key=None, max_retries=5):
+def call_gemini(prompt, api_key=None, max_retries=5, model='gemma-3-4b-it'):
     """
     Call the Gemini API with a prompt, with exponential backoff for 503 errors.
     
@@ -17,6 +17,7 @@ def call_gemini(prompt, api_key=None, max_retries=5):
         prompt (str): The prompt to send to the model
         api_key (str, optional): API key. If None, reads from GEMINI_API_KEY env var
         max_retries (int): Maximum number of retries for 503 errors (default: 5)
+        model (str): The model to use (default: 'gemma-3-4b-it')
     
     Returns:
         str: The model's response
@@ -36,7 +37,7 @@ def call_gemini(prompt, api_key=None, max_retries=5):
         try:
             # Generate response
             response = client.models.generate_content(
-                model='gemma-3-4b-it',
+                model=model,
                 contents=prompt
             )
             return response.text

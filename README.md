@@ -49,7 +49,28 @@ psql -d miniflux -f schema.sql
 
 ## Usage
 
-### Process Miniflux Entries (Main Script)
+### Webhook Server (Real-Time Processing)
+
+For event-driven processing instead of batch polling, use the webhook server:
+
+```bash
+# Set webhook secret
+export MINIFLUX_WEBHOOK_SECRET="your-secret-here"
+
+# Start webhook server
+python webhook_server.py
+```
+
+**Key features:**
+- Event-driven architecture (no polling needed)
+- In-memory FIFO queue with background processing
+- Processes one entry per minute to prevent API throttling
+- Uses `gemma-3-12b-it` model (larger, better quality)
+- Non-blocking webhook responses
+
+**See [WEBHOOK.md](WEBHOOK.md) for complete setup, configuration, and deployment instructions.**
+
+### Process Miniflux Entries (Batch Script)
 
 Process unread entries from Miniflux in batches:
 
@@ -65,6 +86,7 @@ This will:
 - Automatically mark low and mid quality entries as "read"
 - Wait 60 seconds between batches
 - Skip already evaluated blogs
+- Uses `gemma-3-4b-it` model (default, faster)
 
 **Adjust batch settings** in [miniflux.py](miniflux.py):
 ```python

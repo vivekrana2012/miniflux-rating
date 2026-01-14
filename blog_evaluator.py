@@ -11,7 +11,7 @@ from file_storage import save_evaluation, load_evaluation
 from logger import logger
 
 
-def evaluate_blog(url, entry_id=None, db_service=None, output_dir=None):
+def evaluate_blog(url, entry_id=None, db_service=None, output_dir=None, model='gemma-3-4b-it'):
     """
     Fetch a blog post and evaluate it using Gemini.
     
@@ -20,6 +20,7 @@ def evaluate_blog(url, entry_id=None, db_service=None, output_dir=None):
         entry_id (int, optional): Miniflux entry ID to save in database
         db_service (PostgresService, optional): Database service instance
         output_dir (str, optional): Directory to save output files (default: script_dir/resources)
+        model (str): The Gemini model to use (default: 'gemma-3-4b-it')
     
     Returns:
         dict: Contains 'blog_id', 'file_path', 'rating', and 'is_new'
@@ -47,9 +48,9 @@ def evaluate_blog(url, entry_id=None, db_service=None, output_dir=None):
     content = fetch_blog_content(url)
     logger.info(f"Fetched {len(content)} characters")
     
-    logger.info("Sending to Gemini for evaluation...")
+    logger.info(f"Sending to Gemini for evaluation (model: {model})...")
     prompt = create_evaluation_prompt(content)
-    evaluation = call_gemini(prompt)
+    evaluation = call_gemini(prompt, model=model)
     
     # Parse rating
     rating = parse_rating(evaluation)

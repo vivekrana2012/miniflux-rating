@@ -2,3 +2,5 @@ google-genai
 trafilatura
 requests
 psycopg2-binary
+fastapi
+uvicorn[standard]
