@@ -57,7 +57,7 @@ def verify_signature(payload: bytes, signature: str) -> bool:
 
 
 @app.post("/webhook")
-def miniflux_webhook(
+async def miniflux_webhook(
     request: Request,
     x_miniflux_signature: Optional[str] = Header(None),
     x_miniflux_event_type: Optional[str] = Header(None)
@@ -68,7 +68,7 @@ def miniflux_webhook(
     Validates HMAC signature and processes new_entries events.
     """
     # Get raw request body for signature verification
-    payload = request.body()
+    payload = await request.body()
     
     # Verify signature
     if not x_miniflux_signature:
@@ -87,7 +87,7 @@ def miniflux_webhook(
         return {"status": "ignored", "event_type": x_miniflux_event_type}
     
     # Parse JSON payload
-    data = request.json()
+    data = await request.json()
     entries = data.get('entries', [])
     
     logger.info(f"Received new_entries webhook with {len(entries)} entries")
