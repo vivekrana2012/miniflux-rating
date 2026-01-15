@@ -182,6 +182,50 @@ CREATE TABLE ratings (
 );
 ```
 
+## Evaluation Prompt
+
+The AI uses the following prompt to evaluate blog content:
+
+```
+Please evaluate this blog post using a STRICT rating scale. Be critical and discerning.
+
+RATING GUIDELINES:
+8-10: EXCEPTIONAL - Reserved ONLY for truly profound content:
+  - Deep life lessons with transformative insights
+  - Rigorous technical analysis with novel research or findings
+  - Original thought that challenges conventional wisdom
+  - Simply being well-written or based on something is NOT enough
+  
+6-7: STRONG - High quality but not groundbreaking:
+  - Well-researched technical content with good depth
+  - Practical insights with clear value
+  - Good analysis but not revolutionary
+  
+4-5: AVERAGE - Competent but unremarkable:
+  - Standard technical tutorials or explanations
+  - Surface-level analysis
+  - Derivative content without unique perspective
+  
+1-3: WEAK - Poor quality or minimal value:
+  - Superficial content
+  - Poorly written or organized
+  - Little practical or intellectual value
+
+Provide your response in the following format:
+
+SUMMARY:
+[A brief 2-3 sentence summary of the blog post]
+
+RATING:
+[A numerical rating from 1-10]
+
+REASONING:
+[Detailed explanation of why you gave this rating. Be specific about what makes it profound (or not), the depth of analysis, originality of thought, and practical value. For ratings above 8, clearly explain what makes this content exceptional and transformative.]
+
+Blog content:
+{blog_content}
+```
+
 ## Quality-Based Filtering
 
 Entries are automatically marked as read based on their rating:
