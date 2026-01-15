@@ -1,3 +1,7 @@
+# WHY ?
+
+I have been struggling to find good blogs to read for sometime. I guess good is a very abstract term and can have different meanings depending on each person. So rather than following a certain publisher i wanted a curated set of blogs. The idea is to filter out blogs that teach you something profound (something that makes you think and stays longer with you). Obviously its very tough to achieve such filtering. I am also some how gaining affinity towards this whole "enshittification" thing. So here I am implementing a self hosted and self data owning RSS tool - Miniflux. And I also wanted the curated filtring so I am trying to hook up Gemini to evaluted the blogs and then filter out "non-profound" ones. I know its not perfect but I am trying it out. If you don't like it then I don't care because I am doing this for me.
+
 # Blog Evaluator with Gemini AI
 
 A modular Python application that fetches blog posts from the web and evaluates them using the Gemini API (`gemini-2.5-flash-lite` model). Includes integration with Miniflux RSS reader for automated batch processing with quality-based filtering.
